@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CardVault">
+<title>CardVault – AI 명함 관리</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+  onerror="console.warn('XLSX CDN 로드 실패')"></script>
+
+<style>
+:root{
+  --blue:#007AFF; --blue-lt:#E8F4FF; --blue-dk:#005EC3;
+  --green:#34C759; --red:#FF3B30; --orange:#FF9500;
+  --bg:#F2F2F7; --card:#FFF; --text:#1C1C1E; --t2:#6C6C70; --t3:#AEAEB2;
+  --bd:#E5E5EA; --r:14px; --rs:10px;
+  --sbot:env(safe-area-inset-bottom,0px);
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#000;--card:#1C1C1E;--text:#FFF;--t2:#8E8E93;--t3:#48484A;--bd:#38383A;--blue-lt:#0A2540;}
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:-apple-system,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);overscroll-behavior:none;}
+button{cursor:pointer;font-family:inherit;}
+input{font-family:inherit;}
+#app{height:100dvh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;}
+.hd{background:var(--card);border-bottom:.5px solid var(--bd);padding:12px 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:9px;}
+.logo-mk{width:30px;height:30px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.logo-mk svg{width:16px;height:16px;fill:#fff;}
+.logo-nm{font-size:17px;font-weight:700;letter-spacing:-.4px;}
+.logo-sb{font-size:10px;color:var(--t2);}
+.hd-btn{background:var(--blue);color:#fff;border:none;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;}
+.tabs{display:flex;background:var(--card);border-bottom:.5px solid var(--bd);flex-shrink:0;}
+.tab{flex:1;padding:10px 2px;font-size:11px;font-weight:500;text-align:center;cursor:pointer;color:var(--t2);border-bottom:2.5px solid transparent;transition:all .2s;}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue);font-weight:700;}
+.page{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(14px + var(--sbot));}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.stat{background:var(--card);border-radius:var(--rs);padding:12px 14px;}
+.stat-lbl{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.stat-n{font-size:26px;font-weight:700;letter-spacing:-1px;}
+.srch{position:relative;margin-bottom:12px;}
+.srch-ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;}
+.srch-in{width:100%;padding:10px 14px 10px 36px;background:var(--card);border:.5px solid var(--bd);border-radius:var(--rs);font-size:15px;color:var(--text);outline:none;-webkit-appearance:none;}
+.srch-in:focus{border-color:var(--blue);}
+.srch-in::placeholder{color:var(--t3);}
+.bc{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;border:.5px solid var(--bd);cursor:pointer;position:relative;transition:transform .1s;}
+.bc:active{transform:scale(.985);}
+.bc-top{display:flex;gap:11px;align-items:center;}
+.av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.bc-nm{font-size:15px;font-weight:700;letter-spacing:-.3px;}
+.bc-ti{font-size:12px;color:var(--t2);margin-top:1px;}
+.bc-co{font-size:13px;color:var(--blue);font-weight:600;margin-top:2px;}
+.bc-det{border-top:.5px solid var(--bd);padding-top:10px;margin-top:10px;display:grid;gap:5px;}
+.dr{display:flex;align-items:center;gap:7px;font-size:12px;}
+.dr-ic{width:16px;text-align:center;font-size:13px;flex-shrink:0;}
+.dr-v{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--blue-lt);color:var(--blue);margin-right:3px;margin-top:4px;}
+.bc-actions{position:absolute;top:10px;right:10px;display:flex;gap:4px;}
+.ic-btn{background:none;border:none;font-size:18px;line-height:1;padding:4px;transition:transform .1s;}
+.ic-btn:active{transform:scale(1.3);}
+.star-btn{color:var(--t3);}
+.star-btn.on{color:var(--orange);}
+.del-ic-btn{color:var(--t3);font-size:16px;}
+.del-ic-btn:active{color:var(--red);}
+.tip{background:var(--blue-lt);border-radius:var(--rs);padding:12px 14px;font-size:13px;color:var(--blue-dk);margin-bottom:14px;line-height:1.6;font-weight:500;}
+.cam-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.cam-btn{padding:20px 10px 18px;border-radius:var(--r);border:1.5px solid var(--bd);background:var(--card);cursor:pointer;text-align:center;transition:all .15s;-webkit-appearance:none;}
+.cam-btn:active{transform:scale(.96);}
+.cam-btn.main{background:var(--blue);border-color:var(--blue);}
+.cam-ic{font-size:30px;display:block;margin-bottom:8px;}
+.cam-lbl{font-size:13px;font-weight:700;color:var(--text);}
+.cam-btn.main .cam-lbl{color:#fff;}
+.cam-sb{font-size:11px;color:var(--t2);margin-top:3px;}
+.cam-btn.main .cam-sb{color:rgba(255,255,255,.7);}
+.prev-box{display:none;margin-bottom:14px;}
+.prev-img{width:100%;border-radius:var(--r);max-height:220px;object-fit:cover;border:.5px solid var(--bd);margin-bottom:10px;}
+.retake-btn{width:100%;padding:11px;background:var(--bg);border:.5px solid var(--bd);border-radius:var(--rs);font-size:13px;font-weight:600;color:var(--text);}
+.anlz{background:var(--blue-lt);border-radius:var(--rs);padding:14px;display:none;align-items:center;gap:12px;font-size:13px;color:var(--blue);font-weight:600;margin-bottom:12px;}
+.spin{width:18px;height:18px;border:2.5px solid rgba(0,122,255,.2);border-top-color:var(--blue);border-radius:50%;animation:spin .75s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.form-box{display:none;}
+.form-head{font-size:13px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.fg{margin-bottom:10px;}
+.fl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:4px;}
+.fi{width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--card);color:var(--text);outline:none;-webkit-appearance:none;}
+.fi:focus{border-color:var(--blue);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.btn-row{display:flex;gap:8px;margin-top:14px;padding-bottom:20px;}
+.btn-p{flex:1;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:var(--rs);font-size:15px;font-weight:700;}
+.btn-s{padding:13px 18px;background:var(--bg);color:var(--text);border:.5px solid var(--bd);border-radius:var(--rs);font-size:15px;font-weight:600;}
+.sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center;}
+.sheet-bg.open{display:flex;}
+.sheet{background:var(--card);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 20px calc(24px + var(--sbot));max-height:92dvh;overflow-y:auto;}
+.sh-handle{width:40px;height:4px;background:var(--bd);border-radius:2px;margin:12px auto 16px;}
+.sh-title{font-size:18px;font-weight:700;letter-spacing:-.5px;margin-bottom:14px;}
+.dt-table{width:100%;font-size:13px;border-collapse:collapse;}
+.dt-table td{padding:7px 0;vertical-align:top;}
+.dt-table td:first-child{color:var(--t2);width:60px;font-weight:500;padding-right:10px;}
+.dt-img{width:100%;border-radius:12px;max-height:160px;object-fit:cover;margin-bottom:14px;border:.5px solid var(--bd);}
+.sh-btn-row{display:flex;gap:8px;margin-top:14px;}
+.sh-del{background:var(--red);color:#fff;border:none;padding:12px 18px;border-radius:var(--rs);font-size:14px;font-weight:600;}
+.sh-close{flex:1;background:var(--bg);border:.5px solid var(--bd);color:var(--text);padding:12px;border-radius:var(--rs);font-size:14px;font-weight:600;}
+.exp-info{background:var(--bg);border-radius:var(--rs);padding:12px 14px;font-size:13px;color:var(--t2);margin-bottom:14px;line-height:1.6;}
+.exp-dl{width:100%;padding:15px;background:var(--blue);color:#fff;border:none;border-radius:var(--rs);font-size:16px;font-weight:700;margin-bottom:8px;}
+.exp-cancel{width:100%;padding:13px;background:var(--bg);border:.5px solid var(--bd);color:var(--t2);border-radius:var(--rs);font-size:14px;font-weight:600;}
+.cfm-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center;}
+.cfm-bg.open{display:flex;}
+.cfm-box{background:var(--card);border-radius:16px;padding:20px;width:82%;max-width:320px;text-align:center;}
+.cfm-title{font-size:16px;font-weight:700;margin-bottom:8px;}
+.cfm-msg{font-size:14px;color:var(--t2);margin-bottom:18px;line-height:1.5;}
+.cfm-btns{display:flex;gap:8px;}
+.cfm-cancel{flex:1;padding:12px;background:var(--bg);border:.5px solid var(--bd);border-radius:var(--rs);font-size:15px;font-weight:600;color:var(--t2);}
+.cfm-ok{flex:1;padding:12px;background:var(--red);border:none;border-radius:var(--rs);font-size:15px;font-weight:700;color:#fff;}
+.empty{text-align:center;padding:4rem 2rem;}
+.empty-ic{font-size:40px;margin-bottom:12px;}
+.empty-tx{font-size:15px;color:var(--t2);font-weight:500;}
+.api-box{background:var(--card);border-radius:var(--r);padding:16px;margin-bottom:14px;border:.5px solid var(--bd);}
+.api-title{font-size:14px;font-weight:700;margin-bottom:6px;}
+.api-desc{font-size:12px;color:var(--t2);margin-bottom:10px;line-height:1.5;}
+.api-row{display:flex;gap:8px;}
+.api-in{flex:1;padding:9px 12px;font-size:13px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--bg);color:var(--text);outline:none;}
+.api-in:focus{border-color:var(--blue);}
+.api-save{padding:9px 16px;background:var(--blue);color:#fff;border:none;border-radius:var(--rs);font-size:13px;font-weight:600;}
+.api-ok{font-size:11px;color:var(--green);margin-top:6px;font-weight:600;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hd">
+    <div class="logo">
+      <div class="logo-mk">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z"/></svg>
+      </div>
+      <div>
+        <div class="logo-nm">CardVault</div>
+        <div class="logo-sb">AI 명함 관리</div>
+      </div>
+    </div>
+    <button class="hd-btn" onclick="openExport()">엑셀 내보내기</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on"  onclick="gotoTab(this,'list')">📋 명함 목록</div>
+    <div class="tab"     onclick="gotoTab(this,'scan')">📷 촬영</div>
+    <div class="tab"     onclick="gotoTab(this,'star')">★ 즐겨찾기</div>
+    <div class="tab"     onclick="gotoTab(this,'setting')">⚙ 설정</div>
+  </div>
+
+  <div class="page" id="tab-list">
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">총 명함</div><div class="stat-n" id="s-total">0</div></div>
+      <div class="stat"><div class="stat-lbl">즐겨찾기</div><div class="stat-n" id="s-star">0</div></div>
+    </div>
+    <div class="srch">
+      <span class="srch-ic">🔍</span>
+      <input class="srch-in" id="searchQ" placeholder="이름, 회사, 직함으로 검색" oninput="doSearch()">
+    </div>
+    <div id="cardList"></div>
+  </div>
+
+  <div class="page" id="tab-scan" style="display:none;">
+    <div class="tip">📸 카메라로 명함을 직접 촬영하거나 갤러리 사진을 선택하면 AI가 자동으로 정보를 추출합니다.</div>
+    <div id="noKeyWarn" style="display:none;background:#FFF3CD;border-radius:var(--rs);padding:10px 14px;font-size:12px;color:#856404;margin-bottom:12px;font-weight:600;">
+      ⚠️ Anthropic API 키가 없으면 AI 분석을 사용할 수 없습니다. ⚙ 설정 탭에서 API 키를 입력하세요.
+    </div>
+    <div class="cam-grid" id="camButtons">
+      <div class="cam-btn main" onclick="document.getElementById('camFile').click()">
+        <span class="cam-ic">📷</span>
+        <div class="cam-lbl">카메라 촬영</div>
+        <div class="cam-sb">바로 찍기</div>
+      </div>
+      <div class="cam-btn" onclick="document.getElementById('galFile').click()">
+        <span class="cam-ic">🖼</span>
+        <div class="cam-lbl">갤러리 선택</div>
+        <div class="cam-sb">저장된 사진</div>
+      </div>
+    </div>
+    <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none" onchange="onImg(event)">
+    <input type="file" id="galFile" accept="image/*" style="display:none" onchange="onImg(event)">
+    <div class="prev-box" id="previewBox">
+      <img class="prev-img" id="prevImg" src="" alt="">
+      <button class="retake-btn" onclick="resetScan()">↩ 다시 촬영하기</button>
+      <div class="anlz" id="anlzBar">
+        <div class="spin"></div>
+        <span id="anlzMsg">AI가 명함 내용을 읽는 중...</span>
+      </div>
+    </div>
+    <div class="form-box" id="formBox">
+      <div class="form-head">✅ 분석 완료 — 확인 후 저장하세요</div>
+      <div class="form-grid">
+        <div class="fg"><label class="fl">이름</label><input class="fi" id="f-name" placeholder="이름"></div>
+        <div class="fg"><label class="fl">직함</label><input class="fi" id="f-title" placeholder="직함"></div>
+      </div>
+      <div class="fg"><label class="fl">회사명</label><input class="fi" id="f-company" placeholder="회사명"></div>
+      <div class="fg"><label class="fl">이메일</label><input class="fi" id="f-email" type="email" placeholder="이메일"></div>
+      <div class="form-grid">
+        <div class="fg"><label class="fl">전화번호</label><input class="fi" id="f-phone" placeholder="전화"></div>
+        <div class="fg"><label class="fl">휴대폰</label><input class="fi" id="f-mobile" placeholder="휴대폰"></div>
+      </div>
+      <div class="fg"><label class="fl">주소</label><input class="fi" id="f-address" placeholder="주소"></div>
+      <div class="fg"><label class="fl">홈페이지</label><input class="fi" id="f-website" placeholder="www.example.com"></div>
+      <div class="fg"><label class="fl">메모</label><input class="fi" id="f-memo" placeholder="만난 장소, 특이사항..."></div>
+      <div class="fg"><label class="fl">태그 (쉼표로 구분)</label><input class="fi" id="f-tags" placeholder="예: VIP, 파트너사, 미팅필요"></div>
+      <div class="btn-row">
+        <button class="btn-s" onclick="resetScan()">취소</button>
+        <button class="btn-p" onclick="saveCard()">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="tab-star" style="display:none;">
+    <div id="starList"></div>
+  </div>
+
+  <div class="page" id="tab-setting" style="display:none;">
+    <div class="api-box">
+      <div class="api-title">🔑 Anthropic API 키 설정</div>
+      <div class="api-desc">
+        AI 명함 분석 기능을 사용하려면 Anthropic API 키가 필요합니다.<br>
+        <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue);">console.anthropic.com</a> 에서 무료로 발급받으세요.<br>
+        키는 이 기기에만 저장되며 외부로 전송되지 않습니다.
+      </div>
+      <div class="api-row">
+        <input class="api-in" id="apiKeyIn" type="password" placeholder="sk-ant-api03-...">
+        <button class="api-save" onclick="saveApiKey()">저장</button>
+      </div>
+      <div class="api-ok" id="apiOkMsg" style="display:none;">✓ API 키가 저장되었습니다</div>
+    </div>
+    <div class="api-box" style="margin-top:0;">
+      <div class="api-title">📊 데이터 관리</div>
+      <div class="api-desc">현재 저장된 명함: <strong id="settingCount">0</strong>건</div>
+      <button onclick="clearAll()" style="width:100%;padding:11px;background:var(--bg);border:1px solid var(--red);color:var(--red);border-radius:var(--rs);font-size:13px;font-weight:600;margin-top:8px;">
+        🗑 전체 데이터 삭제
+      </button>
+    </div>
+    <div class="api-box" style="margin-top:0;">
+      <div class="api-title">ℹ 사용 방법</div>
+      <div class="api-desc" style="line-height:1.8;">
+        1. ⚙ 설정 탭에서 API 키 입력<br>
+        2. 📷 촬영 탭에서 명함 사진 찍기<br>
+        3. AI가 자동으로 정보 추출<br>
+        4. 내용 확인 후 저장<br>
+        5. 엑셀 내보내기로 PC에서 활용<br><br>
+        <strong>홈 화면에 추가 (iPhone)</strong><br>
+        Safari → 공유 → 홈 화면에 추가<br><br>
+        <strong>홈 화면에 추가 (Android)</strong><br>
+        Chrome 메뉴 → 앱 설치
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="detailSheet">
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="exportSheet">
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-title">엑셀 내보내기</div>
+    <div class="exp-info">
+      총 <strong id="exportN">0</strong>건의 명함 데이터를 엑셀 파일(.xlsx)로 내보냅니다.<br>
+      이름, 직함, 회사, 연락처, 이메일, 주소, 메모, 태그가 포함됩니다.
+    </div>
+    <button class="exp-dl" onclick="doExport()">📥 엑셀 파일 다운로드</button>
+    <button class="exp-cancel" onclick="closeSheet('exportSheet')">취소</button>
+  </div>
+</div>
+
+<div class="cfm-bg" id="cfmDlg">
+  <div class="cfm-box">
+    <div class="cfm-title" id="cfmTitle">삭제 확인</div>
+    <div class="cfm-msg" id="cfmMsg">이 명함을 삭제하시겠습니까?</div>
+    <div class="cfm-btns">
+      <button class="cfm-cancel" onclick="cfmResolve(false)">취소</button>
+      <button class="cfm-ok" id="cfmOkBtn" onclick="cfmResolve(true)">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+let cfmResolve = ()=>{};
+function showConfirm(title, msg, okLabel='삭제', okColor='var(--red)') {
+  return new Promise(resolve => {
+    document.getElementById('cfmTitle').textContent = title;
+    document.getElementById('cfmMsg').textContent = msg;
+    const okBtn = document.getElementById('cfmOkBtn');
+    okBtn.textContent = okLabel;
+    okBtn.style.background = okColor;
+    document.getElementById('cfmDlg').classList.add('open');
+    cfmResolve = val => {
+      document.getElementById('cfmDlg').classList.remove('open');
+      resolve(val);
+    };
+  });
+}
+
+const COLORS = [
+  {bg:'#E8F4FF',c:'#005EC3'},{bg:'#E8F9F0',c:'#1B5E35'},
+  {bg:'#FFF4E6',c:'#7A4200'},{bg:'#FCE8F3',c:'#7A1F4D'},
+  {bg:'#EEE8FF',c:'#3D1F99'},{bg:'#E8F9F9',c:'#0D5C5C'},
+  {bg:'#FFF0F0',c:'#991919'},{bg:'#F5FFE8',c:'#3A6600'},
+];
+
+let DB = [];
+let curImg = null;
+let curTab = 'list';
+
+function loadDB() {
+  try {
+    const inited = localStorage.getItem('cv_init');
+    const s = localStorage.getItem('cv_db_v2');
+    if (s) { DB = JSON.parse(s); }
+    else if (!inited) { DB = getSampleData(); saveDB(); }
+    else { DB = []; }
+  } catch(e) { DB = []; }
+}
+
+function saveDB() {
+  try {
+    localStorage.setItem('cv_db_v2', JSON.stringify(DB));
+    localStorage.setItem('cv_init', '1');
+  } catch(e) {}
+}
+
+function getApiKey() { return localStorage.getItem('cv_apikey') || ''; }
+
+function saveApiKey() {
+  const v = document.getElementById('apiKeyIn').value.trim();
+  if (!v) { alert('API 키를 입력하세요.'); return; }
+  localStorage.setItem('cv_apikey', v);
+  document.getElementById('apiOkMsg').style.display = 'block';
+  setTimeout(()=>{ document.getElementById('apiOkMsg').style.display='none'; }, 2000);
+  updateNoKeyWarn();
+}
+
+function updateNoKeyWarn() {
+  const has = !!getApiKey();
+  document.getElementById('noKeyWarn').style.display = has ? 'none' : 'block';
+}
+
+function ini(n) { return n.length >= 2 ? n.slice(0,2) : n; }
+
+function getSampleData() {
+  return [
+    {id:1,name:'김민준',title:'영업 이사',company:'삼성전자',email:'minjun.kim@samsung.com',phone:'02-1234-5678',mobile:'010-9876-5432',address:'서울 서초구 서초대로74길 11',website:'www.samsung.com',memo:'IT 전시회 만남, 파트너십 관심',tags:['VIP','파트너사'],starred:true,date:'2026-04-15',img:null,color:0},
+    {id:2,name:'이수진',title:'마케팅 팀장',company:'LG유플러스',email:'sujin.lee@lguplus.com',phone:'02-2345-6789',mobile:'010-1111-2222',address:'서울 용산구 한강대로 32',website:'',memo:'디지털 마케팅 협력 논의',tags:['미팅 필요'],starred:false,date:'2026-04-20',img:null,color:1},
+    {id:3,name:'박지훈',title:'CTO',company:'카카오',email:'jihun.park@kakao.com',phone:'031-898-8000',mobile:'010-3333-4444',address:'경기 성남시 분당구 판교역로 166',website:'',memo:'API 연동 협업 가능성',tags:['기술협력','VIP'],starred:true,date:'2026-04-22',img:null,color:2},
+    {id:4,name:'최은영',title:'구매 담당자',company:'현대자동차',email:'eunyoung.choi@hyundai.com',phone:'02-3464-1114',mobile:'010-5555-6666',address:'서울 서초구 헌릉로 12',website:'',memo:'부품 공급 미팅',tags:['공급망'],starred:false,date:'2026-04-25',img:null,color:3},
+    {id:5,name:'정다은',title:'HR 매니저',company:'네이버',email:'daeun.jung@naver.com',phone:'1588-3830',mobile:'010-7777-8888',address:'경기 성남시 분당구 불정로 6',website:'',memo:'채용 박람회에서 수령',tags:['채용'],starred:false,date:'2026-04-28',img:null,color:4},
+    {id:6,name:'한승우',title:'대표이사',company:'스타트업ABC',email:'sw.han@startupABC.io',phone:'02-9999-0000',mobile:'010-2222-3333',address:'서울 강남구 테헤란로 427',website:'www.startupABC.io',memo:'투자자 미팅 소개, 후속 미팅 필요',tags:['투자가능','미팅 필요'],starred:false,date:'2026-04-29',img:null,color:5},
+  ];
+}
+
+function renderList(data, elId) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  if (!data.length) {
+    const msgs = {cardList:'저장된 명함이 없습니다', starList:'즐겨찾기한 명함이 없습니다'};
+    el.innerHTML = '<div class="empty"><div class="empty-ic">' + (elId==='starList'?'⭐':'📇') + '</div><div class="empty-tx">' + (msgs[elId]||'없습니다') + '</div></div>';
+    return;
+  }
+  data.forEach(c => {
+    const av = COLORS[c.color % COLORS.length];
+    const d = document.createElement('div');
+    d.className = 'bc';
+    const imgEl = c.img
+      ? '<img src="' + c.img + '" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;" alt="">'
+      : '<div class="av" style="background:' + av.bg + ';color:' + av.c + ';">' + ini(c.name) + '</div>';
+    d.innerHTML =
+      '<div class="bc-top">' + imgEl +
+      '<div style="flex:1;min-width:0;">' +
+      '<div class="bc-nm">' + escHtml(c.name) + '</div>' +
+      '<div class="bc-ti">' + escHtml(c.title) + '</div>' +
+      '<div class="bc-co">' + escHtml(c.company) + '</div>' +
+      '</div></div>' +
+      '<div class="bc-det">' +
+      (c.mobile||c.phone ? '<div class="dr"><span class="dr-ic">📞</span><span class="dr-v">' + escHtml(c.mobile||c.phone) + '</span></div>' : '') +
+      (c.email ? '<div class="dr"><span class="dr-ic">✉</span><span class="dr-v">' + escHtml(c.email) + '</span></div>' : '') +
+      (c.memo ? '<div class="dr"><span class="dr-ic">📝</span><span class="dr-v">' + escHtml(c.memo.slice(0,40)) + (c.memo.length>40?'…':'') + '</span></div>' : '') +
+      '</div>' +
+      '<div style="margin-top:6px;">' + c.tags.map(t=>'<span class="tag">' + escHtml(t) + '</span>').join('') + '</div>' +
+      '<div class="bc-actions">' +
+      '<button class="ic-btn star-btn ' + (c.starred?'on':'') + '" onclick="toggleStar(event,' + c.id + ')" title="즐겨찾기">' + (c.starred?'★':'☆') + '</button>' +
+      '<button class="ic-btn del-ic-btn" onclick="quickDelete(event,' + c.id + ')" title="삭제">🗑</button>' +
+      '</div>';
+    d.onclick = e => { if (e.target.closest('.bc-actions')) return; openDetail(c.id); };
+    el.appendChild(d);
+  });
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function doSearch() {
+  const q = document.getElementById('searchQ').value.toLowerCase();
+  const filtered = DB.filter(c =>
+    !q || c.name.toLowerCase().includes(q) || c.company.toLowerCase().includes(q) ||
+    c.title.toLowerCase().includes(q) || c.tags.join(' ').toLowerCase().includes(q)
+  );
+  renderList(filtered, 'cardList');
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = DB.length;
+  document.getElementById('s-star').textContent = DB.filter(c=>c.starred).length;
+  const sc = document.getElementById('settingCount');
+  if (sc) sc.textContent = DB.length;
+}
+
+function toggleStar(e, id) {
+  e.stopPropagation();
+  const c = DB.find(x=>x.id===id);
+  if (c) { c.starred = !c.starred; saveDB(); doSearch(); renderStarred(); }
+}
+
+async function quickDelete(e, id) {
+  e.stopPropagation();
+  const c = DB.find(x=>x.id===id);
+  if (!c) return;
+  const ok = await showConfirm('명함 삭제', c.name + '님의 명함을 삭제하시겠습니까?');
+  if (!ok) return;
+  DB = DB.filter(x=>x.id!==id);
+  saveDB(); doSearch(); renderStarred();
+}
+
+function renderStarred() { renderList(DB.filter(c=>c.starred), 'starList'); }
+
+function gotoTab(el, tab) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  ['list','scan','star','setting'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===tab ? '' : 'none';
+  });
+  curTab = tab;
+  if (tab === 'star') renderStarred();
+  if (tab === 'scan') updateNoKeyWarn();
+  if (tab === 'setting') {
+    updateStats();
+    const k = getApiKey();
+    if (k) document.getElementById('apiKeyIn').value = k;
+  }
+}
+
+function onImg(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  const tmpUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(tmpUrl);
+    const maxW = 1200;
+    let {width:w, height:h} = img;
+    if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+    const cvs = document.createElement('canvas');
+    cvs.width = w; cvs.height = h;
+    cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+    const dataUrl = cvs.toDataURL('image/jpeg', 0.85);
+    curImg = dataUrl;
+    document.getElementById('camButtons').style.display = 'none';
+    document.getElementById('previewBox').style.display = 'block';
+    document.getElementById('prevImg').src = dataUrl;
+    document.getElementById('anlzBar').style.display = 'flex';
+    document.getElementById('anlzMsg').textContent = 'AI가 명함 내용을 읽는 중...';
+    document.getElementById('formBox').style.display = 'none';
+    analyzeCard(dataUrl);
+  };
+  img.onerror = () => { URL.revokeObjectURL(tmpUrl); alert('이미지를 불러올 수 없습니다.'); };
+  img.src = tmpUrl;
+  e.target.value = '';
+}
+
+async function analyzeCard(dataUrl) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    document.getElementById('anlzBar').style.display = 'none';
+    clearForm();
+    setFormHead('✏️ API 키 없음 — ⚙ 설정에서 입력 후 직접 작성하세요', 'var(--orange)');
+    document.getElementById('formBox').style.display = 'block';
+    return;
+  }
+  const b64  = dataUrl.split(',')[1];
+  const mime = dataUrl.split(';')[0].split(':')[1];
+  try {
+    const res = await fetch('/.netlify/functions/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageData: b64, mimeType: mime, apiKey: apiKey })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const errMsg = data && data.error ? data.error.message : String(res.status);
+      if (res.status === 401) { setFormHead('⚠️ API 키가 올바르지 않습니다 — ⚙ 설정에서 키를 다시 확인하세요', 'var(--red)'); }
+      else if (res.status === 429) { setFormHead('⚠️ 요청 한도 초과 — 잠시 후 다시 시도하세요', 'var(--orange)'); }
+      else { setFormHead('⚠️ 오류(' + res.status + '): ' + errMsg, 'var(--orange)'); }
+      clearForm();
+      document.getElementById('anlzBar').style.display = 'none';
+      document.getElementById('formBox').style.display = 'block';
+      return;
+    }
+    const txt = (data.content || []).map(i => i.text || '').join('');
+    let p = {};
+    try {
+      const m = txt.replace(/```json|```/g, '').match(/\{[\s\S]*?\}/);
+      if (m) p = JSON.parse(m[0]);
+    } catch(pe) { console.warn('JSON 파싱 실패:', pe); }
+    document.getElementById('f-name').value    = p.name    || '';
+    document.getElementById('f-title').value   = p.title   || '';
+    document.getElementById('f-company').value = p.company || '';
+    document.getElementById('f-email').value   = p.email   || '';
+    document.getElementById('f-phone').value   = p.phone   || '';
+    document.getElementById('f-mobile').value  = p.mobile  || '';
+    document.getElementById('f-address').value = p.address || '';
+    document.getElementById('f-website').value = p.website || '';
+    document.getElementById('f-memo').value    = '';
+    document.getElementById('f-tags').value    = '';
+    setFormHead('✅ 분석 완료 — 확인 후 저장하세요', 'var(--green)');
+  } catch(err) {
+    console.error('API 오류:', err);
+    clearForm();
+    setFormHead('⚠️ 연결 실패: ' + err.message, 'var(--orange)');
+  }
+  document.getElementById('anlzBar').style.display = 'none';
+  document.getElementById('formBox').style.display = 'block';
+}
+
+function setFormHead(text, color) {
+  const h = document.getElementById('formBox').querySelector('.form-head');
+  h.textContent = text;
+  h.style.color = color;
+}
+
+function clearForm() {
+  ['f-name','f-title','f-company','f-email','f-phone','f-mobile','f-address','f-website','f-memo','f-tags']
+    .forEach(id => { document.getElementById(id).value = ''; });
+}
+
+function resetScan() {
+  curImg = null;
+  document.getElementById('camButtons').style.display = 'grid';
+  document.getElementById('previewBox').style.display = 'none';
+  document.getElementById('formBox').style.display = 'none';
+}
+
+function saveCard() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('이름을 입력해주세요.'); return; }
+  const card = {
+    id: Date.now(), name,
+    title:   document.getElementById('f-title').value.trim(),
+    company: document.getElementById('f-company').value.trim(),
+    email:   document.getElementById('f-email').value.trim(),
+    phone:   document.getElementById('f-phone').value.trim(),
+    mobile:  document.getElementById('f-mobile').value.trim(),
+    address: document.getElementById('f-address').value.trim(),
+    website: document.getElementById('f-website').value.trim(),
+    memo:    document.getElementById('f-memo').value.trim(),
+    tags: document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    starred: false,
+    date: new Date().toISOString().slice(0,10),
+    img: curImg,
+    color: Math.floor(Math.random() * COLORS.length)
+  };
+  DB.unshift(card);
+  saveDB();
+  resetScan();
+  gotoTab(document.querySelectorAll('.tab')[0], 'list');
+  doSearch();
+  const saved = document.createElement('div');
+  saved.textContent = '✅ ' + name + '님의 명함 저장 완료';
+  Object.assign(saved.style, {
+    position:'fixed', bottom:'30px', left:'50%', transform:'translateX(-50%)',
+    background:'#1C1C1E', color:'#fff', padding:'12px 20px',
+    borderRadius:'20px', fontSize:'13px', fontWeight:'600',
+    zIndex:'999', whiteSpace:'nowrap', boxShadow:'0 4px 20px rgba(0,0,0,.3)'
+  });
+  document.body.appendChild(saved);
+  setTimeout(() => saved.remove(), 2500);
+}
+
+function openDetail(id) {
+  const c = DB.find(x=>x.id===id);
+  if (!c) return;
+  const av = COLORS[c.color % COLORS.length];
+  const imgEl = c.img
+    ? '<img src="' + c.img + '" style="width:52px;height:52px;border-radius:50%;object-fit:cover;" alt="">'
+    : '<div style="width:52px;height:52px;border-radius:50%;background:' + av.bg + ';color:' + av.c + ';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">' + ini(c.name) + '</div>';
+  document.getElementById('detailBody').innerHTML =
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' + imgEl +
+    '<div><div style="font-size:19px;font-weight:700;letter-spacing:-.5px;">' + escHtml(c.name) + '</div>' +
+    '<div style="font-size:13px;color:var(--t2);margin-top:2px;">' + escHtml(c.title) + ' · ' + escHtml(c.company) + '</div></div></div>' +
+    (c.img ? '<img src="' + c.img + '" class="dt-img">' : '') +
+    '<table class="dt-table">' +
+    (c.email   ? '<tr><td>이메일</td><td style="color:var(--blue);">' + escHtml(c.email) + '</td></tr>' : '') +
+    (c.phone   ? '<tr><td>전화</td><td>' + escHtml(c.phone) + '</td></tr>' : '') +
+    (c.mobile  ? '<tr><td>휴대폰</td><td>' + escHtml(c.mobile) + '</td></tr>' : '') +
+    (c.address ? '<tr><td>주소</td><td>' + escHtml(c.address) + '</td></tr>' : '') +
+    (c.website ? '<tr><td>웹</td><td style="color:var(--blue);">' + escHtml(c.website) + '</td></tr>' : '') +
+    (c.memo    ? '<tr><td>메모</td><td>' + escHtml(c.memo) + '</td></tr>' : '') +
+    '<tr><td>등록일</td><td>' + c.date + '</td></tr>' +
+    '</table>' +
+    '<div style="margin:12px 0;">' + c.tags.map(t=>'<span class="tag">' + escHtml(t) + '</span>').join('') + '</div>' +
+    '<div class="sh-btn-row">' +
+    '<button class="sh-del" onclick="deleteCard(' + c.id + ')">🗑 삭제</button>' +
+    '<button class="sh-close" onclick="closeSheet('detailSheet')">닫기</button>' +
+    '</div>';
+  document.getElementById('detailSheet').classList.add('open');
+}
+
+async function deleteCard(id) {
+  const c = DB.find(x=>x.id===id);
+  if (!c) return;
+  const ok = await showConfirm('명함 삭제', c.name + '님의 명함을 삭제하시겠습니까?');
+  if (!ok) return;
+  DB = DB.filter(x=>x.id!==id);
+  saveDB();
+  closeSheet('detailSheet');
+  doSearch();
+  renderStarred();
+}
+
+async function clearAll() {
+  const ok = await showConfirm('전체 삭제', '저장된 명함 ' + DB.length + '건을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.', '전체 삭제');
+  if (!ok) return;
+  DB = [];
+  try {
+    localStorage.setItem('cv_db_v2', JSON.stringify([]));
+    localStorage.setItem('cv_init', '1');
+  } catch(e) {}
+  doSearch();
+  updateStats();
+}
+
+function openExport() {
+  document.getElementById('exportN').textContent = DB.length;
+  document.getElementById('exportSheet').classList.add('open');
+}
+
+function doExport() {
+  if (typeof XLSX === 'undefined') { alert('엑셀 라이브러리를 불러올 수 없습니다.\n인터넷 연결 후 다시 시도해주세요.'); return; }
+  const rows = [['이름','직함','회사명','이메일','전화','휴대폰','주소','홈페이지','메모','태그','등록일']];
+  DB.forEach(c => rows.push([c.name, c.title, c.company, c.email, c.phone, c.mobile, c.address, c.website||'', c.memo, c.tags.join(', '), c.date]));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [12,12,16,26,14,14,30,22,28,16,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, '명함목록');
+  XLSX.writeFile(wb, 'CardVault_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  closeSheet('exportSheet');
+}
+
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.sheet-bg').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+loadDB();
+doSearch();
+updateNoKeyWarn();
+const savedKey = getApiKey();
+if (savedKey) document.getElementById('apiKeyIn').value = savedKey;
+</script>
+</body>
+</html>
